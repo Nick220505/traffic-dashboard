@@ -1,51 +1,64 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ImageIcon } from "lucide-react"
+import { ImageIcon, HardDrive } from "lucide-react"
 
 const IMAGES = [
-  { url: "https://picsum.photos/800/600?random=1", label: "800x600", size: "~50KB" },
-  { url: "https://picsum.photos/1920/1080?random=2", label: "1920x1080", size: "~200KB" },
-  { url: "https://picsum.photos/3840/2160?random=3", label: "4K", size: "~500KB" },
-  { url: "https://picsum.photos/400/400?random=4", label: "400x400", size: "~20KB" },
-  { url: "https://picsum.photos/1200/800?random=5", label: "1200x800", size: "~100KB" },
-  { url: "https://picsum.photos/2560/1440?random=6", label: "QHD", size: "~350KB" },
+  { w: 800, h: 600, label: "800x600", size: "~1.4 MB" },
+  { w: 1920, h: 1080, label: "1920x1080", size: "~5.9 MB" },
+  { w: 3840, h: 2160, label: "4K", size: "~23.7 MB" },
+  { w: 400, h: 400, label: "400x400", size: "~469 KB" },
+  { w: 1200, h: 800, label: "1200x800", size: "~2.7 MB" },
+  { w: 2560, h: 1440, label: "QHD", size: "~10.5 MB" },
 ]
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
 
 interface ImageLoaderPanelProps {
   onTraffic: (bytesIn: number, bytesOut: number) => void
-  onRequest: () => void
+  onRequest: (method: string, url: string, status: number, bytesIn: number, bytesOut: number, latency: number) => void
 }
 
 export function ImageLoaderPanel({ onTraffic, onRequest }: ImageLoaderPanelProps) {
-  const [loadedImages, setLoadedImages] = useState<string[]>([])
+  const [loadedImages, setLoadedImages] = useState<{ src: string; bytes: number; time: number }[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [loadCount, setLoadCount] = useState(0)
 
-  const loadImage = async (url: string) => {
-    onRequest()
-    return new Promise<void>((resolve) => {
-      const img = new window.Image()
-      img.crossOrigin = "anonymous"
-      img.onload = () => {
-        setLoadedImages((prev) => [...prev, `${url}&t=${Date.now()}`])
-        onTraffic(50000, 200)
-        setLoadCount((c) => c + 1)
-        resolve()
-      }
-      img.onerror = () => resolve()
-      img.src = `${url}&t=${Date.now()}`
-    })
-  }
+  const loadImage = useCallback(async (img: typeof IMAGES[0]) => {
+    const seed = `${Date.now()}-${Math.random()}`
+    const url = `/api/image?w=${img.w}&h=${img.h}&seed=${seed}`
+    const start = performance.now()
+
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const latency = Math.round(performance.now() - start)
+      const bytesIn = blob.size
+      const objectUrl = URL.createObjectURL(blob)
+
+      setLoadedImages((prev) => [...prev, { src: objectUrl, bytes: bytesIn, time: latency }])
+      onTraffic(bytesIn, 50)
+      onRequest("GET", url, res.status, bytesIn, 50, latency)
+      setLoadCount((c) => c + 1)
+    } catch {
+      onRequest("GET", url, 0, 0, 0, Math.round(performance.now() - start))
+    }
+  }, [onTraffic, onRequest])
 
   const loadBatch = async () => {
     setIsLoading(true)
     for (const img of IMAGES) {
-      await loadImage(img.url)
-      await new Promise((r) => setTimeout(r, 300))
+      await loadImage(img)
+      await new Promise((r) => setTimeout(r, 200))
     }
     setIsLoading(false)
   }
@@ -55,18 +68,18 @@ export function ImageLoaderPanel({ onTraffic, onRequest }: ImageLoaderPanelProps
       <CardHeader>
         <div className="flex items-center gap-2">
           <ImageIcon className="h-4 w-4 text-chart-3" />
-          <CardTitle className="text-sm">Carga de Imagenes</CardTitle>
+          <CardTitle className="text-sm">Carga de Imagenes (Servidor)</CardTitle>
         </div>
-        <CardDescription>Descarga imagenes de diferentes resoluciones desde CDN externo</CardDescription>
+        <CardDescription>Descarga imagenes BMP generadas por el servidor para medir trafico real</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="grid grid-cols-3 gap-2">
           {IMAGES.map((img) => (
             <Button
-              key={img.url}
+              key={img.label}
               size="sm"
               variant="outline"
-              onClick={() => loadImage(img.url)}
+              onClick={() => loadImage(img)}
               disabled={isLoading}
               className="text-xs flex-col h-auto py-2 gap-0.5"
             >
@@ -76,27 +89,44 @@ export function ImageLoaderPanel({ onTraffic, onRequest }: ImageLoaderPanelProps
           ))}
         </div>
         <Button size="sm" onClick={loadBatch} disabled={isLoading}>
-          Cargar Todas ({IMAGES.length} imagenes)
+          {isLoading ? "Descargando..." : `Cargar Todas (${IMAGES.length} imagenes)`}
         </Button>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono text-xs">
             Cargadas: {loadCount}
           </Badge>
+          {loadedImages.length > 0 && (
+            <Badge variant="outline" className="font-mono text-xs">
+              Total: {formatBytes(loadedImages.reduce((sum, img) => sum + img.bytes, 0))}
+            </Badge>
+          )}
         </div>
         {loadedImages.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
-            {loadedImages.slice(-6).map((src, i) => (
-              <div key={i} className="aspect-video overflow-hidden rounded-md border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt={`Imagen cargada ${i + 1}`}
-                  className="h-full w-full object-cover"
-                />
+            {loadedImages.slice(-6).map((entry, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <div className="aspect-video overflow-hidden rounded-md border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={entry.src}
+                    alt={`Imagen cargada ${i + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground text-center">
+                  {formatBytes(entry.bytes)} - {entry.time}ms
+                </span>
               </div>
             ))}
           </div>
         )}
+        <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
+          <HardDrive className="h-3 w-3 text-muted-foreground shrink-0" />
+          <p className="text-[10px] text-muted-foreground">
+            Las imagenes se generan en el servidor como BMP sin compresion.
+            El trafico es real y medible: cada pixel se transfiere por HTTP.
+          </p>
+        </div>
       </CardContent>
     </Card>
   )

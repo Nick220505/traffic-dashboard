@@ -176,8 +176,8 @@ export default function Home() {
 
           <TabsContent value="media">
             <div className="grid gap-4 md:grid-cols-2">
-              <VideoPanel />
-              <ImageLoaderPanel onTraffic={handleTraffic} onRequest={handleSimpleRequest} />
+              <VideoPanel onTraffic={handleTraffic} onRequest={handleDetailedRequest} />
+              <ImageLoaderPanel onTraffic={handleTraffic} onRequest={handleDetailedRequest} />
             </div>
           </TabsContent>
 

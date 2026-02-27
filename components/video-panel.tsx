@@ -1,63 +1,152 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Video, ExternalLink, Play } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Video, HardDrive, Play, Download } from "lucide-react"
 
 const VIDEOS = [
   {
-    id: "dQw4w9WgXcQ",
-    title: "Rick Astley - Never Gonna Give You Up",
-    description: "Video clasico - genera trafico HTTPS streaming pesado",
-    quality: "1080p",
+    id: "video-1",
+    title: "Video HD - 2 MB",
+    description: "Archivo MP4 servido desde el servidor local",
+    sizeKB: 2048,
+    quality: "HD",
   },
   {
-    id: "jNQXAC9IVRw",
-    title: "Me at the zoo",
-    description: "Primer video de YouTube - trafico ligero",
-    quality: "240p",
+    id: "video-2",
+    title: "Video Ligero - 500 KB",
+    description: "Descarga rapida desde el servidor",
+    sizeKB: 500,
+    quality: "SD",
   },
   {
-    id: "9bZkp7q19f0",
-    title: "PSY - GANGNAM STYLE",
-    description: "Video viral - alta calidad, mucho trafico CDN",
-    quality: "1080p",
+    id: "video-3",
+    title: "Video Pesado - 5 MB",
+    description: "Genera trafico pesado de descarga",
+    sizeKB: 5000,
+    quality: "Full HD",
   },
   {
-    id: "kJQP7kiw5Fk",
-    title: "Luis Fonsi - Despacito",
-    description: "Video mas visto - genera trafico continuo",
+    id: "video-4",
+    title: "Video Ultra - 10 MB",
+    description: "Maximo trafico de descarga binaria",
+    sizeKB: 10000,
     quality: "4K",
   },
   {
-    id: "hTWKbfoikeg",
-    title: "Nirvana - Smells Like Teen Spirit",
-    description: "Trafico de streaming prolongado",
+    id: "video-5",
+    title: "Video Medio - 1 MB",
+    description: "Trafico moderado de streaming",
+    sizeKB: 1024,
     quality: "720p",
   },
   {
-    id: "YQHsXMglC9A",
-    title: "Adele - Hello",
-    description: "Alta calidad de audio y video",
-    quality: "1080p",
+    id: "video-6",
+    title: "Video Clip - 250 KB",
+    description: "Clip corto, descarga instantanea",
+    sizeKB: 250,
+    quality: "360p",
   },
 ]
 
-export function VideoPanel() {
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
+
+interface VideoPanelProps {
+  onTraffic: (bytesIn: number, bytesOut: number) => void
+  onRequest: (method: string, url: string, status: number, bytesIn: number, bytesOut: number, latency: number) => void
+}
+
+export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
   const [activeVideo, setActiveVideo] = useState<string | null>(null)
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null)
   const [loadedVideos, setLoadedVideos] = useState<Set<string>>(new Set())
   const [multipleStreams, setMultipleStreams] = useState(false)
+  const [multipleUrls, setMultipleUrls] = useState<Record<string, string>>({})
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [lastResult, setLastResult] = useState<{ bytes: number; time: number; speed: string } | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
-  const loadVideo = (id: string) => {
-    setActiveVideo(id)
-    setLoadedVideos((prev) => new Set(prev).add(id))
-  }
+  const loadVideo = useCallback(async (video: typeof VIDEOS[0]) => {
+    setDownloading(video.id)
+    setProgress(0)
+    setMultipleStreams(false)
+    setLastResult(null)
 
-  const loadAllVideos = () => {
+    const fakeProgress = setInterval(() => {
+      setProgress(p => Math.min(p + Math.random() * 15, 90))
+    }, 150)
+
+    const start = performance.now()
+    const url = `/api/video?size=${video.sizeKB}&name=${video.id}`
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const latency = Math.round(performance.now() - start)
+      const bytesIn = blob.size
+      const speed = ((bytesIn / latency) * 1000 / 1024).toFixed(1) + " KB/s"
+
+      onTraffic(bytesIn, 50)
+      onRequest("GET", url, res.status, bytesIn, 50, latency)
+
+      // Revoke previous object URL to prevent memory leaks
+      if (activeVideoUrl) URL.revokeObjectURL(activeVideoUrl)
+
+      const objectUrl = URL.createObjectURL(blob)
+      setActiveVideo(video.id)
+      setActiveVideoUrl(objectUrl)
+      setLoadedVideos(prev => new Set(prev).add(video.id))
+      setLastResult({ bytes: bytesIn, time: latency, speed })
+    } catch {
+      onRequest("GET", url, 0, 0, 0, Math.round(performance.now() - start))
+    }
+
+    clearInterval(fakeProgress)
+    setProgress(100)
+    setTimeout(() => { setDownloading(null); setProgress(0) }, 300)
+  }, [activeVideoUrl, onTraffic, onRequest])
+
+  const loadAllVideos = useCallback(async () => {
     setMultipleStreams(true)
-    VIDEOS.forEach(v => setLoadedVideos(prev => new Set(prev).add(v.id)))
-  }
+    setActiveVideo(null)
+    setActiveVideoUrl(null)
+    setDownloading("all")
+    setProgress(0)
+
+    const urls: Record<string, string> = {}
+    const selected = VIDEOS.slice(0, 4)
+
+    for (let i = 0; i < selected.length; i++) {
+      const video = selected[i]
+      const start = performance.now()
+      const url = `/api/video?size=${video.sizeKB}&name=${video.id}`
+      try {
+        const res = await fetch(url)
+        const blob = await res.blob()
+        const latency = Math.round(performance.now() - start)
+        onTraffic(blob.size, 50)
+        onRequest("GET", url, res.status, blob.size, 50, latency)
+        urls[video.id] = URL.createObjectURL(blob)
+        setLoadedVideos(prev => new Set(prev).add(video.id))
+      } catch {
+        onRequest("GET", url, 0, 0, 0, Math.round(performance.now() - start))
+      }
+      setProgress(((i + 1) / selected.length) * 100)
+    }
+
+    // Revoke old URLs
+    Object.values(multipleUrls).forEach(u => URL.revokeObjectURL(u))
+    setMultipleUrls(urls)
+    setDownloading(null)
+  }, [multipleUrls, onTraffic, onRequest])
 
   return (
     <Card>
@@ -65,42 +154,55 @@ export function VideoPanel() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Video className="h-4 w-4 text-chart-4" />
-            <CardTitle className="text-sm">Video Streaming</CardTitle>
+            <CardTitle className="text-sm">Video Streaming (Servidor)</CardTitle>
           </div>
           <Badge variant="outline" className="text-xs font-mono">
-            {loadedVideos.size} cargados
+            {loadedVideos.size} descargados
           </Badge>
         </div>
         <CardDescription>
-          Reproduce videos de YouTube para generar trafico de streaming real (TLS, DNS, CDN)
+          Descarga archivos MP4 generados por el servidor para medir trafico real de descarga
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {activeVideo && !multipleStreams && (
-          <div className="aspect-video w-full overflow-hidden rounded-lg border border-border">
-            <iframe
-              src={`https://www.youtube.com/embed/${activeVideo}?autoplay=1`}
-              title="Video Player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
+        {activeVideoUrl && !multipleStreams && (
+          <div className="aspect-video w-full overflow-hidden rounded-lg border border-border bg-secondary/30">
+            <video
+              ref={videoRef}
+              src={activeVideoUrl}
+              controls
               className="h-full w-full"
-            />
+            >
+              Tu navegador no soporta el elemento video.
+            </video>
           </div>
         )}
 
-        {multipleStreams && (
+        {multipleStreams && Object.keys(multipleUrls).length > 0 && (
           <div className="grid grid-cols-2 gap-2">
             {VIDEOS.slice(0, 4).map(video => (
-              <div key={video.id} className="aspect-video overflow-hidden rounded-lg border border-border">
-                <iframe
-                  src={`https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1`}
-                  title={video.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="h-full w-full"
-                />
-              </div>
+              multipleUrls[video.id] ? (
+                <div key={video.id} className="aspect-video overflow-hidden rounded-lg border border-border bg-secondary/30">
+                  <video
+                    src={multipleUrls[video.id]}
+                    controls
+                    muted
+                    className="h-full w-full"
+                  />
+                </div>
+              ) : null
             ))}
+          </div>
+        )}
+
+        {downloading && <Progress value={progress} className="h-2" />}
+
+        {lastResult && !downloading && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="font-mono text-xs">descargado</Badge>
+            <Badge variant="outline" className="font-mono text-xs">{formatBytes(lastResult.bytes)}</Badge>
+            <Badge variant="outline" className="font-mono text-xs">{lastResult.time}ms</Badge>
+            <Badge variant="outline" className="font-mono text-xs text-accent">{lastResult.speed}</Badge>
           </div>
         )}
 
@@ -108,15 +210,20 @@ export function VideoPanel() {
           {VIDEOS.map((video) => (
             <button
               key={video.id}
-              onClick={() => { setMultipleStreams(false); loadVideo(video.id) }}
-              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${
+              onClick={() => loadVideo(video)}
+              disabled={downloading !== null}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-50 ${
                 activeVideo === video.id && !multipleStreams
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50 hover:bg-secondary/50"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Play className="h-3 w-3 text-muted-foreground shrink-0" />
+                {downloading === video.id ? (
+                  <Download className="h-3 w-3 text-primary shrink-0 animate-pulse" />
+                ) : (
+                  <Play className="h-3 w-3 text-muted-foreground shrink-0" />
+                )}
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-medium text-foreground">{video.title}</span>
                   <span className="text-[10px] text-muted-foreground">{video.description}</span>
@@ -136,17 +243,18 @@ export function VideoPanel() {
 
         <button
           onClick={loadAllVideos}
-          className="flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+          disabled={downloading !== null}
+          className="flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
         >
           <Video className="h-3.5 w-3.5" />
-          Cargar 4 Videos Simultaneos (Trafico Masivo)
+          Descargar 4 Videos Simultaneos (Trafico Masivo)
         </button>
 
         <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
-          <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+          <HardDrive className="h-3 w-3 text-muted-foreground shrink-0" />
           <p className="text-[10px] text-muted-foreground">
-            Cada video genera: handshake TLS, resolucion DNS (googleapis.com, youtube.com, googlevideo.com),
-            requests a CDN, y streaming continuo de datos via QUIC/HTTP3.
+            Cada video se descarga como archivo MP4 directamente desde el servidor.
+            Genera trafico HTTP real medible: request, response, descarga binaria y buffering del navegador.
           </p>
         </div>
       </CardContent>
