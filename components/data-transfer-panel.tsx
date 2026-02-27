@@ -37,9 +37,9 @@ export function DataTransferPanel({ onTraffic, onRequest }: DataTransferPanelPro
     const start = performance.now()
     try {
       const res = await fetch(`/api/data?size=${sizeKB}`)
-      const data = await res.json()
+      const text = await res.text()
       const elapsed = Math.round(performance.now() - start)
-      const bytesIn = data.actualBytes || 0
+      const bytesIn = text.length
       onTraffic(bytesIn, 50)
       setLastTransfer({ size: bytesIn, time: elapsed })
     } catch {
