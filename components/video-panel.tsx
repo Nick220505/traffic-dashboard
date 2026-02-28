@@ -8,46 +8,52 @@ import { Video, HardDrive, Play, Download } from "lucide-react"
 
 const VIDEOS = [
   {
-    id: "video-1",
-    title: "Video HD - 2 MB",
-    description: "Archivo MP4 servido desde el servidor local",
-    sizeKB: 2048,
-    quality: "HD",
-  },
-  {
-    id: "video-2",
-    title: "Video Ligero - 500 KB",
-    description: "Descarga rapida desde el servidor",
-    sizeKB: 500,
+    id: "sample-1",
+    title: "Big Buck Bunny (Clip)",
+    description: "Animacion 3D - 770 KB",
+    file: "/videos/sample-1.mp4",
+    size: "770 KB",
     quality: "SD",
   },
   {
-    id: "video-3",
-    title: "Video Pesado - 5 MB",
-    description: "Genera trafico pesado de descarga",
-    sizeKB: 5000,
+    id: "sample-2",
+    title: "Movie Sample",
+    description: "Clip corto - 311 KB",
+    file: "/videos/sample-2.mp4",
+    size: "311 KB",
+    quality: "SD",
+  },
+  {
+    id: "sample-3",
+    title: "For Bigger Blazes",
+    description: "Google Sample - 2.4 MB",
+    file: "/videos/sample-3.mp4",
+    size: "2.4 MB",
+    quality: "HD",
+  },
+  {
+    id: "sample-4",
+    title: "For Bigger Escapes",
+    description: "Google Sample - 2.2 MB",
+    file: "/videos/sample-4.mp4",
+    size: "2.2 MB",
+    quality: "HD",
+  },
+  {
+    id: "sample-5",
+    title: "For Bigger Fun",
+    description: "Google Sample - 12.3 MB (pesado)",
+    file: "/videos/sample-5.mp4",
+    size: "12.3 MB",
     quality: "Full HD",
   },
   {
-    id: "video-4",
-    title: "Video Ultra - 10 MB",
-    description: "Maximo trafico de descarga binaria",
-    sizeKB: 10000,
-    quality: "4K",
-  },
-  {
-    id: "video-5",
-    title: "Video Medio - 1 MB",
-    description: "Trafico moderado de streaming",
-    sizeKB: 1024,
-    quality: "720p",
-  },
-  {
-    id: "video-6",
-    title: "Video Clip - 250 KB",
-    description: "Clip corto, descarga instantanea",
-    sizeKB: 250,
-    quality: "360p",
+    id: "sample-6",
+    title: "For Bigger Joyrides",
+    description: "Google Sample - 2.3 MB",
+    file: "/videos/sample-6.mp4",
+    size: "2.3 MB",
+    quality: "HD",
   },
 ]
 
@@ -86,7 +92,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
     }, 150)
 
     const start = performance.now()
-    const url = `/api/video?size=${video.sizeKB}&name=${video.id}`
+    const url = video.file
     try {
       const res = await fetch(url)
       const blob = await res.blob()
@@ -127,7 +133,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
     for (let i = 0; i < selected.length; i++) {
       const video = selected[i]
       const start = performance.now()
-      const url = `/api/video?size=${video.sizeKB}&name=${video.id}`
+      const url = video.file
       try {
         const res = await fetch(url)
         const blob = await res.blob()
@@ -161,7 +167,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
           </Badge>
         </div>
         <CardDescription>
-          Descarga archivos MP4 generados por el servidor para medir trafico real de descarga
+          Descarga y reproduce videos MP4 reales desde el servidor para medir trafico
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -231,7 +237,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="font-mono text-xs shrink-0">
-                  {video.quality}
+                  {video.size}
                 </Badge>
                 {loadedVideos.has(video.id) && (
                   <span className="h-2 w-2 rounded-full bg-accent shrink-0" />
@@ -253,8 +259,8 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
         <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
           <HardDrive className="h-3 w-3 text-muted-foreground shrink-0" />
           <p className="text-[10px] text-muted-foreground">
-            Cada video se descarga como archivo MP4 directamente desde el servidor.
-            Genera trafico HTTP real medible: request, response, descarga binaria y buffering del navegador.
+            Videos MP4 reales servidos desde el servidor. Cada descarga genera trafico HTTP
+            medible: request, response, transferencia binaria y reproduccion con buffering.
           </p>
         </div>
       </CardContent>
