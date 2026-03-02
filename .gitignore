@@ -8,3 +8,9 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+# Videos (archivos grandes)
+public/videos/*.mp4
+public/videos/*.webm
+public/videos/*.mov
+!public/videos/.gitkeep

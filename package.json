@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "download-videos": "node scripts/download-videos.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
