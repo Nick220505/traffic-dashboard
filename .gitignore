@@ -14,3 +14,9 @@ public/videos/*.mp4
 public/videos/*.webm
 public/videos/*.mov
 !public/videos/.gitkeep
+
+# Imagenes (archivos grandes)
+public/images/*.jpg
+public/images/*.jpeg
+public/images/*.png
+!public/images/.gitkeep
