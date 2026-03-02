@@ -92,7 +92,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
     }, 150)
 
     const start = performance.now()
-    const url = video.file
+    const url = `/api/video?name=${video.id}`
     try {
       const res = await fetch(url)
       const blob = await res.blob()
@@ -133,7 +133,7 @@ export function VideoPanel({ onTraffic, onRequest }: VideoPanelProps) {
     for (let i = 0; i < selected.length; i++) {
       const video = selected[i]
       const start = performance.now()
-      const url = video.file
+      const url = `/api/video?name=${video.id}`
       try {
         const res = await fetch(url)
         const blob = await res.blob()

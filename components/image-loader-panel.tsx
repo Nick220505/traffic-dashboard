@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { ImageIcon, HardDrive } from "lucide-react"
 
 const IMAGES = [
-  { w: 800, h: 600, label: "800x600", size: "~1.4 MB" },
-  { w: 1920, h: 1080, label: "1920x1080", size: "~5.9 MB" },
-  { w: 3840, h: 2160, label: "4K", size: "~23.7 MB" },
-  { w: 400, h: 400, label: "400x400", size: "~469 KB" },
-  { w: 1200, h: 800, label: "1200x800", size: "~2.7 MB" },
-  { w: 2560, h: 1440, label: "QHD", size: "~10.5 MB" },
+  { w: 800, h: 600, label: "800x600", size: "~41 KB" },
+  { w: 1920, h: 1080, label: "1920x1080", size: "~217 KB" },
+  { w: 3840, h: 2160, label: "4K", size: "~645 KB" },
+  { w: 400, h: 400, label: "400x400", size: "~10 KB" },
+  { w: 1200, h: 800, label: "1200x800", size: "~108 KB" },
+  { w: 2560, h: 1440, label: "QHD", size: "~600 KB" },
 ]
 
 function formatBytes(bytes: number): string {
@@ -70,7 +70,7 @@ export function ImageLoaderPanel({ onTraffic, onRequest }: ImageLoaderPanelProps
           <ImageIcon className="h-4 w-4 text-chart-3" />
           <CardTitle className="text-sm">Carga de Imagenes (Servidor)</CardTitle>
         </div>
-        <CardDescription>Descarga imagenes BMP generadas por el servidor para medir trafico real</CardDescription>
+        <CardDescription>Descarga fotos reales desde el servidor (proxy a picsum.photos) para medir trafico</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="grid grid-cols-3 gap-2">
@@ -123,8 +123,8 @@ export function ImageLoaderPanel({ onTraffic, onRequest }: ImageLoaderPanelProps
         <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
           <HardDrive className="h-3 w-3 text-muted-foreground shrink-0" />
           <p className="text-[10px] text-muted-foreground">
-            Las imagenes se generan en el servidor como BMP sin compresion.
-            El trafico es real y medible: cada pixel se transfiere por HTTP.
+            Fotos JPEG reales proxiadas a traves del servidor desde picsum.photos.
+            El trafico es completamente real y medible: cada byte fluye por HTTP desde el servidor.
           </p>
         </div>
       </CardContent>
